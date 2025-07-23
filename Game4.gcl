@@ -18,7 +18,7 @@ contract Game4 {
     @global bigint land_default_price;
     @global map<uint32, bigint> build_price;
 
-    @address token coin
+    @address token coin;
 
     @uint32 Land land;
 
