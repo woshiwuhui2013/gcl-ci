@@ -45,7 +45,7 @@ pipeline {
                     def jenkinsWorkspace = pwd()
                     echo "📁 Jenkins工作空间: ${jenkinsWorkspace}"
 
-                    def gclFile = "${jenkinsWorkspace}/Game.gcl"
+                    def gclFile = "${jenkinsWorkspace}/Game4.gcl"
                     echo "🚀 准备执行GCL文件: ${gclFile}"
 
                     // 全面的前置检查
@@ -53,7 +53,7 @@ pipeline {
                     def errorMessages = []
 
                     // 检查GCL文件
-                    if (!fileExists('Game.gcl')) {
+                    if (!fileExists('Game4.gcl')) {
                         preCheckPassed = false
                         errorMessages.add("GCL文件不存在: ${gclFile}")
                     } else {
