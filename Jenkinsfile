@@ -39,33 +39,79 @@ pipeline {
             }
         }
 
-        stage('Execute GCL Files') {
+      stage('Execute GCL Files') {
             steps {
                 script {
-                    // 获取当前Jenkins工作空间路径
                     def jenkinsWorkspace = pwd()
                     echo "📁 Jenkins工作空间: ${jenkinsWorkspace}"
 
-                    // 构建GCL文件的完整路径
-                    def gclFile = "${jenkinsWorkspace}/Game4.gcl"
-                    echo "🚀 执行GCL文件: ${gclFile}"
+                    def gclFile = "${jenkinsWorkspace}/Game.gcl"
+                    echo "🚀 准备执行GCL文件: ${gclFile}"
 
-                    // 直接在/opt/GCL/bin目录中执行chsimu命令
+                    // 全面的前置检查
+                    def preCheckPassed = true
+                    def errorMessages = []
+
+                    // 检查GCL文件
+                    if (!fileExists('Game.gcl')) {
+                        preCheckPassed = false
+                        errorMessages.add("GCL文件不存在: ${gclFile}")
+                    } else {
+                        echo "✅ GCL文件存在"
+                    }
+
+                    // 检查chsimu程序
+                    def chsimuCheck = sh(
+                        script: "test -f /opt/GCL/bin/chsimu && test -x /opt/GCL/bin/chsimu",
+                        returnStatus: true
+                    )
+                    if (chsimuCheck != 0) {
+                        preCheckPassed = false
+                        errorMessages.add("chsimu程序不存在或不可执行: /opt/GCL/bin/chsimu")
+                    } else {
+                        echo "✅ chsimu程序可用"
+                    }
+
+                    // 如果前置检查失败，显示所有错误并终止
+                    if (!preCheckPassed) {
+                        echo "❌ 前置检查失败:"
+                        errorMessages.each { msg ->
+                            echo "   - ${msg}"
+                        }
+                        error "前置检查失败，无法执行GCL文件"
+                    }
+
+                    // 执行GCL文件
+                    echo "▶️  开始执行GCL文件..."
                     try {
                         def result = sh(
-                            script: "cd /opt/GCL/bin && ./chsimu \"${gclFile}\" -stdout",
+                            script: "cd /opt/GCL/bin && timeout 300 ./chsimu \"${gclFile}\" -stdout 2>&1",
                             returnStdout: true
                         )
-                        echo "✅ 执行结果:"
+                        echo "✅ GCL文件执行成功"
+                        echo "📄 执行结果:"
                         echo result
+                        
+                        // 可以添加结果验证
+                        if (result.contains("ERROR") || result.contains("FAILED")) {
+                            error "GCL执行输出包含错误信息"
+                        }
+                        
                     } catch (Exception e) {
-                        echo "❌ 执行失败: ${e.getMessage()}"
-                        // 显示更详细的错误信息
-                        sh "cd /opt/GCL/bin && pwd && ls -la"
-                    }
+                        echo "❌ GCL文件执行异常: ${e.getMessage()}"
+                        
+                        // 收集调试信息
+                        echo "🔍 环境调试信息:"
+                        sh "cd /opt/GCL/bin && pwd && ls -la && echo '---' && file chsimu || true"
+                        sh "ls -la ${jenkinsWorkspace} && echo '---' && file ${gclFile} || true"
+                        sh "whoami && echo '---' && id || true"
+                        
+                        // 主动失败
+                        error "GCL文件执行失败: ${e.getMessage()}"
+                   }
                 }
             }
-        }
+    }
 
         stage('Cleanup') {
             steps {
