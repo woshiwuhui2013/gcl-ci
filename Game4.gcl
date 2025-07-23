@@ -20,7 +20,7 @@ contract Game4 {
 
     @address token coin;
 
-    @uint32 Land land;
+    @uint32 Land land
 
 
     @global function on_deploy(address _owner) {
