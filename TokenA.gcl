@@ -1,0 +1,81 @@
+import IERC20;
+
+contract TokenA implements IERC20.ERC20Interface {
+    @global string token_name;
+    @global string token_symbol;
+    @global uint8 token_decimals;
+    @address token balance;
+    @address map<address, bigint> allowed;
+
+    @global function on_deploy(string _name, string _symbol, uint8 _decimals) {
+        token_name = _name;
+        token_symbol = _symbol;
+        token_decimals = _decimals;
+    }
+
+    @global function init(address target, bigint init_supply) public export {
+        token t = __mint(token.symbol_to_id(token_symbol), init_supply);
+        relay@target (^t) {
+            t.transfer_all(balance);
+        }
+    }
+
+    @global function string name() public {
+        return token_name;
+    }
+
+    @global function string symbol() public {
+        return token_symbol;
+    }
+
+    @global function uint8 decimals() public {
+        return token_decimals;
+    }
+
+    @global function bigint totalSupply() public {
+        return 10000000000000000ib;
+    }
+    
+
+    @address function bigint balanceOf() public export{
+        return balance.get_amount();
+    }
+
+    @address function transfer(address to, bigint value) public export {
+        __debug.assert(balanceOf() >= value, "insufficient balance");
+        token temp_token;
+        balance.transfer(temp_token, value);
+        relay@to (^temp_token) {
+            temp_token.transfer_all(balance);
+        }
+    }
+
+    @address function approve(address spender, bigint value) public export {
+        allowed[spender] = value;
+    }
+
+    @address function bigint allowance(address spender) public export{
+        __debug.assert(allowed.has(spender));
+        return allowed[spender];
+    }
+    
+    @address function transferFrom(address from, address to, bigint value) public export {
+        if (value <= 0ib) {
+            return;
+        }
+        address spender = __transaction.get_sender();
+        if (spender == from) {
+            transfer(to, value);
+            return;
+        } 
+        relay@from (^spender, ^to, ^value){
+            __debug.assert(allowed.has(spender));
+            __debug.assert(balanceOf() >= value);
+            __debug.assert(allowed[spender] >= value);
+            allowed[spender] = allowed[spender] - value;
+            transfer(to, value);
+        }
+    }
+
+
+}

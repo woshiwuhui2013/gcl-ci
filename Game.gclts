@@ -1,0 +1,51 @@
+random.reseed 88
+
+allocate.address $~count$
+chain.gaslimit 128
+
+chain.deploy @0 Game.gcl={_owner:"$@0$"}
+
+state.token mint GME by Game
+
+Game.set_default_land_price @0 {price: "1000000"}
+Game.set_build_price @0 {build_style_id:1, price: "50000"}
+Game.set_build_price @0 {build_style_id:2, price: "30000"}
+Game.set_build_price @0 {build_style_id:3, price: "8888"}
+Game.set_build_price @0 {build_style_id:4, price: "9999"}
+Game.set_build_price @0 {build_style_id:5, price: "6666"}
+chain.run
+
+viz.section init
+viz.shard #g
+
+Game.faucet @all {amount: "10000000000"}
+chain.run
+
+
+Game.occupy @1 { x: 1, y: 1}
+chain.run
+
+Game.occupy*$~count$ @random { x: $random(0, 99)$, y: $random(0, 99)$}
+chain.run
+
+viz.section 1 build land
+Game.build @1 { x: 1, y: 1, build_style_id: 5 }
+chain.run
+viz.addr @1
+
+viz.section 1 sell land
+Game.forSale @1 { x: 1, y: 1, price: "2000000" }
+chain.run
+viz.addr @1
+
+viz.section 2 buy land but not enough coin
+Game.buy @2 {x: 1, y: 1, price: "1500000"}
+chain.run
+viz.addr @1
+viz.addr @2
+
+viz.section 3 buy land
+Game.buy @3 {x: 1, y: 1, price: "3000000"}
+chain.run
+viz.addr @1
+viz.addr @3

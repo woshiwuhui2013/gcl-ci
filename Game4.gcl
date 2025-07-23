@@ -1,0 +1,141 @@
+contract Game4 {
+
+    enum Status {
+        NORMAL,
+        FORSALE
+
+    }
+
+    struct Land {
+        address owner;
+        uint32 build_style;
+        Status status;
+        bigint price;
+    }
+
+
+    @global address owner;
+    @global bigint land_default_price;
+    @global map<uint32, bigint> build_price;
+
+    @address token coin;
+
+    @uint32 Land land;
+
+
+    @global function on_deploy(address _owner) {
+        owner = _owner;
+    }
+
+    @address function set_default_land_price(bigint price) export {
+        address sender = __transaction.get_sender();
+        __debug.assert(sender == owner, "Only owner can set land price.");
+        relay@global (^price) {
+            land_default_price = price;
+        }
+    }
+
+    @address function set_build_price(uint32 build_style_id, bigint price) export {
+        address sender = __transaction.get_sender();
+        __debug.assert(sender == owner, "Only owner can set land price.");
+        relay@global (^build_style_id, ^price) {
+            build_price[build_style_id] = price;
+        }
+    }
+
+    @address function faucet(bigint amount) export {
+        token t = __mint(token.symbol_to_id("GME"), amount);
+        t.transfer_all(coin);
+    }
+
+
+    @address function occupy(uint16 x, uint16 y) export {
+        address sender = __transaction.get_sender();
+        uint32 index = uint32(x) * 65535u32 + uint32(y);
+        __debug.assert(coin.get_amount() >= land_default_price, "insufficient balance.");
+        token coin_for_occupy;
+        coin.transfer(coin_for_occupy, land_default_price);
+        relay@index (^sender, ^x, ^y, ^coin_for_occupy) {
+            address address_0;
+            if (land.owner != address_0) {
+                __debug.print("The [", x, ",", y,"] land has been occupied by ", land.owner);
+                relay@sender (^coin_for_occupy) {
+                    coin_for_occupy.transfer_all(coin);
+                }
+                return;
+            }
+            land.owner = sender;
+            relay@owner (^coin_for_occupy) {
+                coin_for_occupy.transfer_all(coin);
+            }
+            __debug.print(sender, " has occupied the [", x, ",", y,"] land!");
+        }
+
+    }
+
+    @address function build(uint16 x, uint16 y, uint32 build_style_id) export {
+        address sender = __transaction.get_sender();
+        uint32 index = uint32(x) * 65535u32 + uint32(y);
+        __debug.assert(coin.get_amount() >= build_price[build_style_id], "insufficient balance.");
+        token coin_for_build;
+        coin.transfer(coin_for_build, build_price[build_style_id]);
+        relay@index (^sender, ^x, ^y, ^coin_for_build, ^build_style_id) {
+            if (sender != land.owner) {
+                __debug.print("Only the owner of the land can build his own land");
+                relay@sender (^coin_for_build) {
+                    coin_for_build.transfer_all(coin);
+                }
+            } else {
+                land.build_style = build_style_id;
+                relay@owner (^coin_for_build){
+                    coin_for_build.transfer_all(coin);
+                }
+                __debug.print(sender, " build his land with style id: ", build_style_id);
+            }
+            
+        }
+
+    }
+
+    @address function forSale(uint16 x, uint16 y, bigint price) export {
+        address sender = __transaction.get_sender();
+        uint32 index = uint32(x) * 65535u32 + uint32(y);
+        relay@index (^sender, ^index, ^price) {
+            __debug.assert(land.owner == sender, "Only the owner of the land can sell his own land.");
+            land.status = Status.FORSALE;
+            land.price = price;
+            __debug.print("The land ", index, " forSale ", price);
+        }
+    }
+
+    @address function buy(uint16 x, uint16 y, bigint price) export {
+        address sender = __transaction.get_sender();
+        uint32 index = uint32(x) * 65535u32 + uint32(y);
+        __debug.assert(coin.get_amount() >= price, "insufficient balance.");
+        token coin_for_buy;
+        coin.transfer(coin_for_buy, price);
+        relay@index (^sender, ^coin_for_buy, ^x, ^y) {
+            if (land.status == Status.FORSALE && coin_for_buy.get_amount() >= land.price) {
+                __debug.print(sender, " buy the land [", x, ", ", y, "]");
+                relay@land.owner (^sender, ^coin_for_buy, bigint price = land.price) {
+                    coin_for_buy.transfer(coin, price);
+                    if (coin_for_buy.get_amount() > 0ib) {
+                        relay@sender (^coin_for_buy) {
+                            coin_for_buy.transfer_all(coin);
+                        }
+                    }
+                }
+                land.owner = sender;
+                land.status = Status.NORMAL;
+            } else {
+                __debug.print("Not enough coin to buy land or this place is not for sale");
+                relay@sender (^coin_for_buy) {
+                    coin_for_buy.transfer_all(coin);
+                }
+            }
+            
+        }
+    }
+
+
+}
