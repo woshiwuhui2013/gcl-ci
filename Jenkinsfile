@@ -41,7 +41,7 @@ pipeline {
                     echo "📁 Jenkins工作空间: ${jenkinsWorkspace}"
 
                     // 构建GCL文件的完整路径
-                    def gclFile = "${jenkinsWorkspace}/Ballot.gcl"
+                    def gclFile = "${jenkinsWorkspace}/Game4.gcl"
                     echo "🚀 执行GCL文件: ${gclFile}"
 
                     // 直接在/opt/GCL/bin目录中执行chsimu命令
