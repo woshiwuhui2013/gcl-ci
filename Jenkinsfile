@@ -5,19 +5,25 @@ pipeline {
         stage('Setup and Checkout') {
             steps {
                 script {
-                    // 在Jenkins工作空间中检出代码
-                    checkout scm
-                    echo "✅ 代码检出完成"
+                  // 强制清理工作空间
+                  cleanWs()
+                  echo "🧹 清理工作空间完成"
+                  
+                  // 重新检出代码
+                  checkout scm
+                  echo "✅ 代码检出完成"
 
-                    // 显示当前分支和提交信息
-                    def gitBranch = sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
-                    def gitCommit = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
-                    echo "🌿 当前分支: ${gitBranch}"
-                    echo "📝 提交哈希: ${gitCommit}"
-
-                    // 显示当前工作目录
-                    def currentDir = pwd()
-                    echo "📁 当前工作目录: ${currentDir}"
+                  // 验证检出的代码
+                  def gitBranch = sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
+                  def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+                  def gitCommitShort = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+                  
+                  echo "🌿 当前分支: ${gitBranch}"
+                  echo "📝 完整提交哈希: ${gitCommit}"
+                  echo "📝 短提交哈希: ${gitCommitShort}"
+                  
+                  // 显示最新的几个提交
+                  sh 'git log --oneline -3'
                 }
             }
         }
@@ -41,7 +47,7 @@ pipeline {
                     echo "📁 Jenkins工作空间: ${jenkinsWorkspace}"
 
                     // 构建GCL文件的完整路径
-                    def gclFile = "${jenkinsWorkspace}/Game4.gcl"
+                    def gclFile = "${jenkinsWorkspace}/Game.gcl"
                     echo "🚀 执行GCL文件: ${gclFile}"
 
                     // 直接在/opt/GCL/bin目录中执行chsimu命令
